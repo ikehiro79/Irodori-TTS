@@ -63,7 +63,7 @@ uv sync
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v3 \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --ref-wav path/to/reference.wav \
   --output-wav outputs/sample.wav
 ```
@@ -73,7 +73,7 @@ uv run python infer.py \
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v3 \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --no-ref \
   --output-wav outputs/sample.wav
 ```
@@ -83,7 +83,7 @@ uv run python infer.py \
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v2-VoiceDesign \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --caption "落ち着いた女性の声で、近い距離感でやわらかく自然に読み上げてください。" \
   --no-ref \
   --output-wav outputs/sample_voice_design.wav
@@ -115,7 +115,7 @@ The hosted VoiceDesign demo is available at [Aratako/Irodori-TTS-500M-v2-VoiceDe
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v3 \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --ref-wav path/to/reference.wav \
   --output-wav outputs/sample.wav
 ```
@@ -125,7 +125,7 @@ Local checkpoints (`.pt` or `.safetensors`) are also supported:
 ```bash
 uv run python infer.py \
   --checkpoint outputs/checkpoint_final.safetensors \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --ref-wav path/to/reference.wav \
   --output-wav outputs/sample.wav
 ```
@@ -135,7 +135,7 @@ VoiceDesign checkpoints also support caption conditioning:
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v2-VoiceDesign \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --caption "落ち着いた、近い距離感の女性話者" \
   --no-ref \
   --output-wav outputs/sample_voice_design.wav
@@ -162,7 +162,7 @@ steps:
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v3 \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --ref-wav path/to/reference.wav \
   --num-steps 6 \
   --t-schedule-mode sway \

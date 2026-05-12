@@ -92,7 +92,7 @@ For lower-latency experiments, try Sway Sampling with fewer steps:
 ```bash
 uv run python infer.py \
   --hf-checkpoint Aratako/Irodori-TTS-500M-v3 \
-  --text "今日はいい天気ですね。" \
+  --text "こんにちは、私はAIです。これは音声合成のテストです。" \
   --ref-wav path/to/reference.wav \
   --num-steps 6 \
   --t-schedule-mode sway \
