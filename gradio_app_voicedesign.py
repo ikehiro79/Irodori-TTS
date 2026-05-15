@@ -19,9 +19,12 @@ from irodori_tts.inference_runtime import (
     list_available_runtime_precisions,
     save_wav,
 )
+from irodori_tts.long_text import synthesize_long_text
 
 MAX_GRADIO_CANDIDATES = 32
 GRADIO_AUDIO_COLS_PER_ROW = 8
+DEFAULT_LONG_TEXT_CHARS = 180
+DEFAULT_CHUNK_SILENCE_MS = 120
 
 
 def _default_checkpoint() -> str:
@@ -215,6 +218,8 @@ def _run_generation(
     rescale_k_raw: str,
     rescale_sigma_raw: str,
     lora_adapter_raw: str,
+    chunk_max_chars_raw: str,
+    chunk_silence_ms_raw: str,
 ) -> tuple[object, ...]:
     def stdout_log(msg: str) -> None:
         print(msg, flush=True)
@@ -248,6 +253,16 @@ def _run_generation(
     seed = _parse_optional_int(seed_raw, "seed")
     manual_seconds = _parse_optional_float(seconds_raw, "seconds")
     lora_adapter = _parse_optional_str(lora_adapter_raw)
+    chunk_max_chars = _parse_optional_int(chunk_max_chars_raw, "Long Text Chunk Chars")
+    if chunk_max_chars is None:
+        chunk_max_chars = DEFAULT_LONG_TEXT_CHARS
+    if chunk_max_chars < 0:
+        raise ValueError("Long Text Chunk Chars must be >= 0.")
+    chunk_silence_ms = _parse_optional_int(chunk_silence_ms_raw, "Chunk Silence ms")
+    if chunk_silence_ms is None:
+        chunk_silence_ms = DEFAULT_CHUNK_SILENCE_MS
+    if chunk_silence_ms < 0:
+        raise ValueError("Chunk Silence ms must be >= 0.")
 
     runtime, reloaded = get_cached_runtime(runtime_key)
     if not runtime.model_cfg.use_caption_condition:
@@ -282,43 +297,51 @@ def _run_generation(
         )
     )
 
-    result = runtime.synthesize(
-        SamplingRequest(
-            text=text_value,
-            caption=caption_value or None,
-            ref_wav=None,
-            ref_latent=None,
-            no_ref=True,
-            ref_normalize_db=-16.0,
-            ref_ensure_max=True,
-            num_candidates=requested_candidates,
-            decode_mode="sequential",
-            seconds=manual_seconds,
-            duration_scale=float(duration_scale),
-            max_ref_seconds=30.0,
-            max_text_len=max_text_len,
-            max_caption_len=max_caption_len,
-            num_steps=int(num_steps),
-            seed=None if seed is None else int(seed),
-            cfg_guidance_mode=str(cfg_guidance_mode),
-            cfg_scale_text=float(cfg_scale_text),
-            cfg_scale_caption=float(cfg_scale_caption),
-            cfg_scale_speaker=0.0,
-            cfg_scale=cfg_scale,
-            cfg_min_t=float(cfg_min_t),
-            cfg_max_t=float(cfg_max_t),
-            truncation_factor=truncation_factor,
-            rescale_k=rescale_k,
-            rescale_sigma=rescale_sigma,
-            context_kv_cache=bool(context_kv_cache),
-            speaker_kv_scale=None,
-            speaker_kv_min_t=None,
-            speaker_kv_max_layers=None,
-            t_schedule_mode=str(t_schedule_mode),
-            sway_coeff=float(sway_coeff),
-            trim_tail=True,
-            lora_adapter=lora_adapter,
-        ),
+    request = SamplingRequest(
+        text=text_value,
+        caption=caption_value or None,
+        ref_wav=None,
+        ref_latent=None,
+        no_ref=True,
+        ref_normalize_db=-16.0,
+        ref_ensure_max=True,
+        num_candidates=requested_candidates,
+        decode_mode="sequential",
+        seconds=manual_seconds,
+        duration_scale=float(duration_scale),
+        max_ref_seconds=30.0,
+        max_text_len=max_text_len,
+        max_caption_len=max_caption_len,
+        num_steps=int(num_steps),
+        seed=None if seed is None else int(seed),
+        cfg_guidance_mode=str(cfg_guidance_mode),
+        cfg_scale_text=float(cfg_scale_text),
+        cfg_scale_caption=float(cfg_scale_caption),
+        cfg_scale_speaker=0.0,
+        cfg_scale=cfg_scale,
+        cfg_min_t=float(cfg_min_t),
+        cfg_max_t=float(cfg_max_t),
+        truncation_factor=truncation_factor,
+        rescale_k=rescale_k,
+        rescale_sigma=rescale_sigma,
+        context_kv_cache=bool(context_kv_cache),
+        speaker_kv_scale=None,
+        speaker_kv_min_t=None,
+        speaker_kv_max_layers=None,
+        t_schedule_mode=str(t_schedule_mode),
+        sway_coeff=float(sway_coeff),
+        trim_tail=True,
+        lora_adapter=lora_adapter,
+    )
+    result = synthesize_long_text(
+        runtime,
+        request,
+        max_chars=chunk_max_chars,
+        silence_ms=chunk_silence_ms,
+        log_fn=stdout_log,
+        log_prefix="[gradio-caption-long-text]",
+    ) if chunk_max_chars > 0 else runtime.synthesize(
+        request,
         log_fn=stdout_log,
     )
 
@@ -372,7 +395,7 @@ def build_ui() -> gr.Blocks:
     model_precision_choices = _precision_choices_for_device(default_model_device)
     codec_precision_choices = _precision_choices_for_device(default_codec_device)
 
-    with gr.Blocks(title="Irodori-TTS VoiceDesign Gradio") as demo:
+    with gr.Blocks(title="Irodori-TTS VoiceDesign Gradio", css=EMOJI_PALETTE_CSS) as demo:
         gr.Markdown("# Irodori-TTS VoiceDesign Inference")
         gr.Markdown(
             "VoiceDesign版モデル向けのUIです。caption を入れると caption / style conditioning、空欄なら text-only conditioning で推論します。"
@@ -496,6 +519,15 @@ def build_ui() -> gr.Blocks:
                 rescale_k_raw = gr.Textbox(label="Rescale k (optional)", value="")
                 rescale_sigma_raw = gr.Textbox(label="Rescale sigma (optional)", value="")
             lora_adapter_raw = gr.Textbox(label="LoRA Adapter Directory (optional)", value="")
+            with gr.Row():
+                chunk_max_chars_raw = gr.Textbox(
+                    label="Long Text Chunk Chars (0=off)",
+                    value=str(DEFAULT_LONG_TEXT_CHARS),
+                )
+                chunk_silence_ms_raw = gr.Textbox(
+                    label="Chunk Silence ms",
+                    value=str(DEFAULT_CHUNK_SILENCE_MS),
+                )
 
         generate_btn = gr.Button("Generate", variant="primary")
 
@@ -552,6 +584,8 @@ def build_ui() -> gr.Blocks:
                 rescale_k_raw,
                 rescale_sigma_raw,
                 lora_adapter_raw,
+                chunk_max_chars_raw,
+                chunk_silence_ms_raw,
             ],
             outputs=[*out_audios, out_log, out_timing],
         )
@@ -598,7 +632,6 @@ def main() -> None:
         server_port=args.server_port,
         share=bool(args.share),
         debug=bool(args.debug),
-        css=EMOJI_PALETTE_CSS,
     )
 
 

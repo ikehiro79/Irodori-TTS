@@ -15,6 +15,7 @@ from irodori_tts.inference_runtime import (
     resolve_cfg_scales,
     save_wav,
 )
+from irodori_tts.long_text import synthesize_long_text
 
 
 def _parse_optional_float(value: str) -> float | None:
@@ -328,6 +329,18 @@ def main() -> None:
     parser.add_argument("--tail-std-threshold", type=float, default=0.05)
     parser.add_argument("--tail-mean-threshold", type=float, default=0.1)
     parser.add_argument(
+        "--long-text-chunk-chars",
+        type=int,
+        default=180,
+        help="Split text longer than this many characters and concatenate generated chunks. Set 0 to disable.",
+    )
+    parser.add_argument(
+        "--chunk-silence-ms",
+        type=int,
+        default=120,
+        help="Silence inserted between generated text chunks in milliseconds.",
+    )
+    parser.add_argument(
         "--show-timings",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -387,58 +400,58 @@ def main() -> None:
     for msg in scale_messages:
         print(msg)
 
-    result = runtime.synthesize(
-        SamplingRequest(
-            text=str(args.text),
-            caption=None if args.caption is None else str(args.caption),
-            ref_wav=args.ref_wav,
-            ref_latent=args.ref_latent,
-            no_ref=bool(args.no_ref),
-            ref_normalize_db=args.ref_normalize_db,
-            ref_ensure_max=bool(args.ref_ensure_max),
-            num_candidates=int(args.num_candidates),
-            decode_mode=str(args.decode_mode),
-            seconds=None if args.seconds is None else float(args.seconds),
-            duration_scale=float(args.duration_scale),
-            max_ref_seconds=float(args.max_ref_seconds)
-            if args.max_ref_seconds is not None
-            else None,
-            max_text_len=None if args.max_text_len is None else int(args.max_text_len),
-            max_caption_len=None if args.max_caption_len is None else int(args.max_caption_len),
-            num_steps=int(args.num_steps),
-            cfg_scale_text=cfg_scale_text,
-            cfg_scale_caption=cfg_scale_caption,
-            cfg_scale_speaker=cfg_scale_speaker,
-            cfg_guidance_mode=str(args.cfg_guidance_mode),
-            cfg_scale=None,
-            cfg_min_t=float(args.cfg_min_t),
-            cfg_max_t=float(args.cfg_max_t),
-            truncation_factor=None
-            if args.truncation_factor is None
-            else float(args.truncation_factor),
-            rescale_k=None if args.rescale_k is None else float(args.rescale_k),
-            rescale_sigma=None if args.rescale_sigma is None else float(args.rescale_sigma),
-            context_kv_cache=bool(args.context_kv_cache),
-            speaker_kv_scale=None
-            if args.speaker_kv_scale is None
-            else float(args.speaker_kv_scale),
-            speaker_kv_min_t=None
-            if args.speaker_kv_scale is None
-            else float(args.speaker_kv_min_t),
-            speaker_kv_max_layers=None
-            if args.speaker_kv_max_layers is None
-            else int(args.speaker_kv_max_layers),
-            seed=None if args.seed is None else int(args.seed),
-            t_schedule_mode=str(args.t_schedule_mode),
-            sway_coeff=float(args.sway_coeff),
-            trim_tail=bool(args.trim_tail),
-            tail_window_size=int(args.tail_window_size),
-            tail_std_threshold=float(args.tail_std_threshold),
-            tail_mean_threshold=float(args.tail_mean_threshold),
-            lora_adapter=None if args.lora_adapter is None else str(args.lora_adapter),
-        ),
-        log_fn=None,
+    request = SamplingRequest(
+        text=str(args.text),
+        caption=None if args.caption is None else str(args.caption),
+        ref_wav=args.ref_wav,
+        ref_latent=args.ref_latent,
+        no_ref=bool(args.no_ref),
+        ref_normalize_db=args.ref_normalize_db,
+        ref_ensure_max=bool(args.ref_ensure_max),
+        num_candidates=int(args.num_candidates),
+        decode_mode=str(args.decode_mode),
+        seconds=None if args.seconds is None else float(args.seconds),
+        duration_scale=float(args.duration_scale),
+        max_ref_seconds=float(args.max_ref_seconds) if args.max_ref_seconds is not None else None,
+        max_text_len=None if args.max_text_len is None else int(args.max_text_len),
+        max_caption_len=None if args.max_caption_len is None else int(args.max_caption_len),
+        num_steps=int(args.num_steps),
+        cfg_scale_text=cfg_scale_text,
+        cfg_scale_caption=cfg_scale_caption,
+        cfg_scale_speaker=cfg_scale_speaker,
+        cfg_guidance_mode=str(args.cfg_guidance_mode),
+        cfg_scale=None,
+        cfg_min_t=float(args.cfg_min_t),
+        cfg_max_t=float(args.cfg_max_t),
+        truncation_factor=None if args.truncation_factor is None else float(args.truncation_factor),
+        rescale_k=None if args.rescale_k is None else float(args.rescale_k),
+        rescale_sigma=None if args.rescale_sigma is None else float(args.rescale_sigma),
+        context_kv_cache=bool(args.context_kv_cache),
+        speaker_kv_scale=None if args.speaker_kv_scale is None else float(args.speaker_kv_scale),
+        speaker_kv_min_t=None if args.speaker_kv_scale is None else float(args.speaker_kv_min_t),
+        speaker_kv_max_layers=None
+        if args.speaker_kv_max_layers is None
+        else int(args.speaker_kv_max_layers),
+        seed=None if args.seed is None else int(args.seed),
+        t_schedule_mode=str(args.t_schedule_mode),
+        sway_coeff=float(args.sway_coeff),
+        trim_tail=bool(args.trim_tail),
+        tail_window_size=int(args.tail_window_size),
+        tail_std_threshold=float(args.tail_std_threshold),
+        tail_mean_threshold=float(args.tail_mean_threshold),
+        lora_adapter=None if args.lora_adapter is None else str(args.lora_adapter),
     )
+    if int(args.long_text_chunk_chars) < 0:
+        parser.error("--long-text-chunk-chars must be >= 0.")
+    if int(args.chunk_silence_ms) < 0:
+        parser.error("--chunk-silence-ms must be >= 0.")
+    result = synthesize_long_text(
+        runtime,
+        request,
+        max_chars=int(args.long_text_chunk_chars),
+        silence_ms=int(args.chunk_silence_ms),
+        log_fn=None,
+    ) if int(args.long_text_chunk_chars) > 0 else runtime.synthesize(request, log_fn=None)
 
     print(f"[seed] used_seed: {result.used_seed}")
     if int(args.num_candidates) == 1:
