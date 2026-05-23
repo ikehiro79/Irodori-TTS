@@ -3,11 +3,12 @@ from __future__ import annotations
 import re
 import secrets
 from dataclasses import replace
+from pathlib import Path
 from typing import Callable
 
 import torch
 
-from .inference_runtime import InferenceRuntime, SamplingRequest, SamplingResult
+from .inference_runtime import InferenceRuntime, SamplingRequest, SamplingResult, save_wav
 
 
 _TERMINAL_PUNCTUATION = "".join(chr(code) for code in (0x3002, 0xFF01, 0xFF1F))
@@ -165,11 +166,41 @@ def synthesize_long_text(
             log_fn(f"{log_prefix} using shared random seed {base_seed} for all chunks")
     else:
         base_seed = int(req.seed)
+
+    anchored_req = req
+    anchor_path: Path | None = None
+    can_anchor_no_ref = bool(
+        req.no_ref
+        and req.ref_wav is None
+        and req.ref_latent is None
+        and getattr(runtime.model_cfg, "use_speaker_condition", False)
+    )
+    if can_anchor_no_ref:
+        if log_fn is not None:
+            log_fn(f"{log_prefix} generating reference anchor for consistent voice timbre")
+        anchor_result = runtime.synthesize(
+            replace(req, text=chunks[0], seed=base_seed),
+            log_fn=log_fn,
+        )
+        anchor_path = save_wav(
+            Path("gradio_outputs") / "long_text_anchors" / f"anchor_{base_seed}.wav",
+            anchor_result.audio.float(),
+            anchor_result.sample_rate,
+        )
+        anchored_req = replace(
+            req,
+            ref_wav=str(anchor_path),
+            ref_latent=None,
+            no_ref=False,
+            ref_normalize_db=-16.0,
+            ref_ensure_max=True,
+        )
+
     chunk_results: list[SamplingResult] = []
     for idx, chunk in enumerate(chunks, start=1):
         if log_fn is not None:
             log_fn(f"{log_prefix} chunk {idx}/{len(chunks)} chars={len(chunk)}")
-        chunk_req = replace(req, text=chunk, seed=base_seed)
+        chunk_req = replace(anchored_req, text=chunk, seed=base_seed)
         chunk_results.append(runtime.synthesize(chunk_req, log_fn=log_fn))
 
     result = concatenate_audios(chunk_results, silence_ms=silence_ms)
@@ -178,6 +209,11 @@ def synthesize_long_text(
         1,
         f"info: shared seed {base_seed} was used for every text chunk to keep voice timbre consistent.",
     )
+    if anchor_path is not None:
+        result.messages.insert(
+            2,
+            f"info: generated anchor reference audio was reused for all chunks: {anchor_path}",
+        )
     if req.seconds is not None:
         result.messages.insert(
             1,
