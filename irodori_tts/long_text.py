@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 from dataclasses import replace
 from typing import Callable
 
@@ -14,7 +15,7 @@ _TERMINAL_PUNCTUATION += "!?." + chr(0xFF0E)
 _SOFT_BREAK_CHARS = "".join(chr(code) for code in (0x3001, 0xFF0C))
 _SOFT_BREAK_CHARS += ",;" + chr(0xFF1B) + ":" + chr(0xFF1A) + " "
 _SENTENCE_RE = re.compile(
-    rf"[^{re.escape(_TERMINAL_PUNCTUATION)}\n]+[{re.escape(_TERMINAL_PUNCTUATION)}]*|\n+"
+    rf"[^{re.escape(_TERMINAL_PUNCTUATION)}]+[{re.escape(_TERMINAL_PUNCTUATION)}]*"
 )
 
 
@@ -23,23 +24,33 @@ def split_text_for_tts(text: str, max_chars: int) -> list[str]:
     source = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
     if source == "":
         return []
-    if max_chars <= 0 or len(source) <= max_chars:
+    if (max_chars <= 0 or len(source) <= max_chars) and "\n" not in source:
         return [source]
 
     chunks: list[str] = []
     current = ""
-    for match in _SENTENCE_RE.finditer(source):
-        unit = match.group(0).strip()
-        if unit == "":
-            continue
-        for piece in _split_oversized_unit(unit, max_chars):
-            if current and len(current) + 1 + len(piece) > max_chars:
+    for line in source.split("\n"):
+        line = line.strip()
+        if line == "":
+            if current:
                 chunks.append(current)
-                current = piece
-            elif current:
-                current = _join_text_chunks(current, piece)
-            else:
-                current = piece
+                current = ""
+            continue
+        for match in _SENTENCE_RE.finditer(line):
+            unit = match.group(0).strip()
+            if unit == "":
+                continue
+            for piece in _split_oversized_unit(unit, max_chars):
+                if current and len(current) + 1 + len(piece) > max_chars:
+                    chunks.append(current)
+                    current = piece
+                elif current:
+                    current = _join_text_chunks(current, piece)
+                else:
+                    current = piece
+        if current:
+            chunks.append(current)
+            current = ""
 
     if current:
         chunks.append(current)
@@ -148,16 +159,25 @@ def synthesize_long_text(
     if log_fn is not None:
         log_fn(f"{log_prefix} split text into {len(chunks)} chunks (max_chars={max_chars})")
 
-    base_seed = req.seed
+    if req.seed is None:
+        base_seed = int(secrets.randbits(63))
+        if log_fn is not None:
+            log_fn(f"{log_prefix} using shared random seed {base_seed} for all chunks")
+    else:
+        base_seed = int(req.seed)
     chunk_results: list[SamplingResult] = []
     for idx, chunk in enumerate(chunks, start=1):
-        chunk_seed = None if base_seed is None else int(base_seed) + idx - 1
         if log_fn is not None:
             log_fn(f"{log_prefix} chunk {idx}/{len(chunks)} chars={len(chunk)}")
-        chunk_req = replace(req, text=chunk, seed=chunk_seed)
+        chunk_req = replace(req, text=chunk, seed=base_seed)
         chunk_results.append(runtime.synthesize(chunk_req, log_fn=log_fn))
 
     result = concatenate_audios(chunk_results, silence_ms=silence_ms)
+    result.used_seed = base_seed
+    result.messages.insert(
+        1,
+        f"info: shared seed {base_seed} was used for every text chunk to keep voice timbre consistent.",
+    )
     if req.seconds is not None:
         result.messages.insert(
             1,

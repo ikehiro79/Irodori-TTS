@@ -20,40 +20,65 @@ EMOJI_PALETTE_CSS = """
 
 .emoji-palette-grid {
     display: flex;
-    gap: 3px;
+    gap: 8px;
     flex-wrap: wrap;
     align-items: flex-start;
-    max-height: 124px;
+    max-height: 260px;
     overflow-y: auto;
 }
 
 .emoji-palette-button {
-    flex: 0 0 28px !important;
-    min-width: 28px !important;
-    max-width: 28px !important;
+    flex: 0 0 auto !important;
+    min-width: 170px !important;
+    max-width: 220px !important;
 }
 
 .emoji-palette-button button {
-    width: 28px !important;
-    min-width: 28px !important;
-    height: 28px !important;
-    min-height: 28px !important;
+    width: auto !important;
+    min-width: 170px !important;
+    height: 46px !important;
+    min-height: 46px !important;
     border-radius: 4px;
-    font-size: 17px;
-    line-height: 1;
-    padding: 0 !important;
+    font-size: 12px;
+    line-height: 1.15;
+    padding: 4px 8px !important;
+    text-align: left;
 }
 
 button.emoji-palette-button {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    min-height: 28px;
+    width: auto;
+    min-width: 170px;
+    height: 46px;
+    min-height: 46px;
     border-radius: 4px;
-    font-size: 17px;
-    line-height: 1;
-    padding: 0;
+    font-size: 12px;
+    line-height: 1.15;
+    padding: 4px 8px;
     cursor: pointer;
+    text-align: left;
+}
+
+.emoji-palette-symbol {
+    display: inline-block;
+    margin-right: 5px;
+    font-size: 16px;
+    vertical-align: middle;
+}
+
+.emoji-palette-label {
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.emoji-palette-description {
+    display: block;
+    color: #666;
+    font-size: 11px;
+    margin-left: 22px;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 """
 
@@ -68,39 +93,39 @@ EMOJI_PALETTE_ITEMS: tuple[EmojiPaletteItem, ...] = (
     EmojiPaletteItem("😏", "からかう", "甘えるように"),
     EmojiPaletteItem("🥺", "震え声", "自信なさげに"),
     EmojiPaletteItem("🌬️", "息切れ", "荒い息遣い、呼吸音"),
-    EmojiPaletteItem("😮", "息をのむ", "Gasp"),
+    EmojiPaletteItem("😮", "息をのむ", "はっと息を吸う音"),
     EmojiPaletteItem("👅", "舐める音", "咀嚼音、水音"),
-    EmojiPaletteItem("💋", "リップノイズ", "Lip smack"),
-    EmojiPaletteItem("🫶", "優しく", "Tenderly"),
+    EmojiPaletteItem("💋", "リップノイズ", "唇を鳴らす音"),
+    EmojiPaletteItem("🫶", "優しく", "やわらかく、穏やかに"),
     EmojiPaletteItem("😭", "泣き声", "嗚咽、悲しみ"),
     EmojiPaletteItem("😱", "悲鳴", "叫び、絶叫"),
     EmojiPaletteItem("😪", "眠そう", "気だるげに"),
     EmojiPaletteItem("😴", "寝言", "いびき"),
     EmojiPaletteItem("⏩", "早口", "一気に、急いで"),
     EmojiPaletteItem("📞", "電話越し", "スピーカー越し"),
-    EmojiPaletteItem("🐢", "ゆっくり", "Slowly"),
+    EmojiPaletteItem("🐢", "ゆっくり", "ゆったり、遅めに"),
     EmojiPaletteItem("🥤", "飲み込む", "唾を飲む音"),
     EmojiPaletteItem("🤧", "咳・鼻", "咳き込み、鼻すすり"),
-    EmojiPaletteItem("😒", "舌打ち", "Tutting"),
+    EmojiPaletteItem("😒", "舌打ち", "舌を鳴らす音"),
     EmojiPaletteItem("😰", "慌てる", "動揺、緊張、どもり"),
     EmojiPaletteItem("😆", "喜び", "嬉しそうに"),
     EmojiPaletteItem("💥", "勢いよく", "力強い勢い"),
     EmojiPaletteItem("😠", "怒り", "不満げ、拗ねる"),
     EmojiPaletteItem("😲", "驚き", "感嘆"),
-    EmojiPaletteItem("🥱", "あくび", "Yawn"),
-    EmojiPaletteItem("😖", "苦しげ", "Agonizingly"),
+    EmojiPaletteItem("🥱", "あくび", "眠そうなあくび"),
+    EmojiPaletteItem("😖", "苦しげ", "苦しそうに、つらそうに"),
     EmojiPaletteItem("😟", "心配", "不安そうに"),
     EmojiPaletteItem("🫣", "照れ", "恥ずかしそうに"),
-    EmojiPaletteItem("🙄", "呆れ", "Exasperatedly"),
+    EmojiPaletteItem("🙄", "呆れ", "うんざり、呆れた感じ"),
     EmojiPaletteItem("😊", "楽しげ", "嬉しそうに"),
     EmojiPaletteItem("😎", "得意げ", "自信ありげに"),
     EmojiPaletteItem("👌", "相槌", "頷く音"),
     EmojiPaletteItem("🙏", "懇願", "お願いするように"),
-    EmojiPaletteItem("🥴", "酔う", "Drunkenly"),
-    EmojiPaletteItem("🎵", "鼻歌", "Humming"),
-    EmojiPaletteItem("🤐", "口を塞ぐ", "Muffled"),
+    EmojiPaletteItem("🥴", "酔う", "酔ったように"),
+    EmojiPaletteItem("🎵", "鼻歌", "鼻歌、ハミング"),
+    EmojiPaletteItem("🤐", "口を塞ぐ", "こもった声"),
     EmojiPaletteItem("😌", "安堵", "満足げに"),
-    EmojiPaletteItem("🤔", "疑問", "Questioning"),
+    EmojiPaletteItem("🤔", "疑問", "問いかけるように"),
     EmojiPaletteItem("💪", "力強く", "力を込めて"),
     EmojiPaletteItem("👃", "嗅ぐ音", "匂いを嗅ぐ音"),
     EmojiPaletteItem("📖", "朗読", "ナレーション"),
@@ -147,7 +172,10 @@ def _emoji_palette_html(textbox: gr.Textbox) -> str:
             f'title="{title}" '
             f'aria-label="{title}" '
             f'onpointerdown="{handler}">'
-            f"{emoji}</button>"
+            f'<span class="emoji-palette-symbol">{emoji}</span>'
+            f'<span class="emoji-palette-label">{escape(item.label)}</span>'
+            f'<span class="emoji-palette-description">{escape(item.description)}</span>'
+            "</button>"
         )
     return (
         '<div class="emoji-palette-grid" '
