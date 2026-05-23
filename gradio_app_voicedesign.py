@@ -20,6 +20,7 @@ from irodori_tts.inference_runtime import (
     save_wav,
 )
 from irodori_tts.long_text import synthesize_long_text
+from irodori_tts.openai_emoji import add_speech_emojis_with_openai
 
 MAX_GRADIO_CANDIDATES = 32
 GRADIO_AUDIO_COLS_PER_ROW = 8
@@ -198,6 +199,7 @@ def _run_generation(
     codec_precision: str,
     text: str,
     caption: str,
+    auto_openai_emoji: bool,
     num_steps: int,
     num_candidates: int,
     seed_raw: str,
@@ -237,6 +239,10 @@ def _run_generation(
 
     if text_value == "":
         raise ValueError("text is required.")
+    emoji_message: str | None = None
+    if bool(auto_openai_emoji):
+        text_value = add_speech_emojis_with_openai(text_value)
+        emoji_message = "info: OpenAI added speech-control emojis before generation."
 
     requested_candidates = int(num_candidates)
     if requested_candidates <= 0:
@@ -360,6 +366,7 @@ def _run_generation(
     runtime_msg = "runtime: reloaded" if reloaded else "runtime: reused"
     detail_lines = [
         runtime_msg,
+        *([] if emoji_message is None else [emoji_message]),
         f"seed_used: {result.used_seed}",
         f"candidates: {len(result.audios)}",
         *[f"saved[{i}]: {path}" for i, path in enumerate(out_paths, start=1)],
@@ -380,6 +387,11 @@ def _run_generation(
         else:
             audio_updates.append(gr.update(value=None, visible=False))
     return (*audio_updates, detail_text, timing_text)
+
+
+def _add_openai_emojis_to_text(text: str) -> tuple[str, str]:
+    updated = add_speech_emojis_with_openai(str(text))
+    return updated, "OpenAI emoji annotation complete."
 
 
 def _clear_runtime_cache() -> str:
@@ -444,6 +456,13 @@ def build_ui() -> gr.Blocks:
                 elem_id="irodori-voicedesign-text-input",
             )
             build_emoji_palette(text, open=False)
+            with gr.Row():
+                openai_emoji_btn = gr.Button("ChatGPTで絵文字を自動追加")
+                auto_openai_emoji = gr.Checkbox(
+                    label="Generate前にChatGPTで絵文字を自動追加",
+                    value=False,
+                )
+            openai_emoji_status = gr.Textbox(label="Emoji Auto Annotation", interactive=False)
         caption = gr.Textbox(
             label="Caption / Style Prompt (optional)",
             lines=4,
@@ -564,6 +583,7 @@ def build_ui() -> gr.Blocks:
                 codec_precision,
                 text,
                 caption,
+                auto_openai_emoji,
                 num_steps,
                 num_candidates,
                 seed_raw,
@@ -588,6 +608,11 @@ def build_ui() -> gr.Blocks:
                 chunk_silence_ms_raw,
             ],
             outputs=[*out_audios, out_log, out_timing],
+        )
+        openai_emoji_btn.click(
+            _add_openai_emojis_to_text,
+            inputs=[text],
+            outputs=[text, openai_emoji_status],
         )
         model_device.change(
             _on_model_device_change, inputs=[model_device], outputs=[model_precision]
