@@ -26,6 +26,10 @@ MAX_GRADIO_CANDIDATES = 32
 GRADIO_AUDIO_COLS_PER_ROW = 8
 DEFAULT_LONG_TEXT_CHARS = 30
 DEFAULT_CHUNK_SILENCE_MS = 120
+DEFAULT_CONSISTENCY_CAPTION = (
+    "同一人物の声。性別、年齢感、声質、距離感、話す速さ、テンションを全行で統一。"
+    "落ち着いた自然な日本語朗読。"
+)
 
 
 def _default_checkpoint() -> str:
@@ -269,6 +273,10 @@ def _run_generation(
         chunk_silence_ms = DEFAULT_CHUNK_SILENCE_MS
     if chunk_silence_ms < 0:
         raise ValueError("Chunk Silence ms must be >= 0.")
+    consistency_caption_applied = False
+    if caption_value == "" and chunk_max_chars > 0:
+        caption_value = DEFAULT_CONSISTENCY_CAPTION
+        consistency_caption_applied = True
 
     runtime, reloaded = get_cached_runtime(runtime_key)
     if not runtime.model_cfg.use_caption_condition:
@@ -367,6 +375,11 @@ def _run_generation(
     detail_lines = [
         runtime_msg,
         *([] if emoji_message is None else [emoji_message]),
+        *(
+            ["info: default consistency caption was applied to keep voice atmosphere stable."]
+            if consistency_caption_applied
+            else []
+        ),
         f"seed_used: {result.used_seed}",
         f"candidates: {len(result.audios)}",
         *[f"saved[{i}]: {path}" for i, path in enumerate(out_paths, start=1)],
@@ -466,6 +479,7 @@ def build_ui() -> gr.Blocks:
         caption = gr.Textbox(
             label="Caption / Style Prompt (optional)",
             lines=4,
+            placeholder=DEFAULT_CONSISTENCY_CAPTION,
         )
 
         with gr.Accordion("Sampling", open=True):

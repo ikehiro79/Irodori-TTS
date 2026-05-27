@@ -214,6 +214,16 @@ def synthesize_long_text(
             2,
             f"info: generated anchor reference audio was reused for all chunks: {anchor_path}",
         )
+    elif req.no_ref and getattr(runtime.model_cfg, "use_speaker_condition", False):
+        result.messages.insert(
+            2,
+            "warning: speaker anchor was not used; provide reference audio for stronger voice consistency.",
+        )
+    elif not getattr(runtime.model_cfg, "use_speaker_condition", False):
+        result.messages.insert(
+            2,
+            "info: this checkpoint has no speaker reference conditioning; use a consistent caption/style prompt to reduce voice changes.",
+        )
     if req.seconds is not None:
         result.messages.insert(
             1,
