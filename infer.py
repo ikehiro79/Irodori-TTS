@@ -331,7 +331,7 @@ def main() -> None:
     parser.add_argument(
         "--long-text-chunk-chars",
         type=int,
-        default=30,
+        default=80,
         help="Split text longer than this many characters and concatenate generated chunks. Set 0 to disable.",
     )
     parser.add_argument(

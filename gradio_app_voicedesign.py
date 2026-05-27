@@ -24,11 +24,11 @@ from irodori_tts.openai_emoji import add_speech_emojis_with_openai
 
 MAX_GRADIO_CANDIDATES = 32
 GRADIO_AUDIO_COLS_PER_ROW = 8
-DEFAULT_LONG_TEXT_CHARS = 30
+DEFAULT_LONG_TEXT_CHARS = 80
 DEFAULT_CHUNK_SILENCE_MS = 120
 DEFAULT_CONSISTENCY_CAPTION = (
-    "同一人物の声。性別、年齢感、声質、距離感、話す速さ、テンションを全行で統一。"
-    "落ち着いた自然な日本語朗読。"
+    "同一人物の声。女性。落ち着いた自然な日本語朗読。"
+    "性別、年齢感、声質、距離感、話す速さ、テンションを全行で統一。"
 )
 
 
@@ -479,6 +479,7 @@ def build_ui() -> gr.Blocks:
         caption = gr.Textbox(
             label="Caption / Style Prompt (optional)",
             lines=4,
+            value=DEFAULT_CONSISTENCY_CAPTION,
             placeholder=DEFAULT_CONSISTENCY_CAPTION,
         )
 
